@@ -1,0 +1,16 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  db:
+    image: postgres:14.2
+    restart: always
+    environment:
+      POSTGRES_USER: "${PGUSER:-postgres}"
+      POSTGRES_PASSWORD: "${PGPASSWORD:-postgres}"
+      POSTGRES_DB: 'es_go_local'
+    ports:
+      - "${PGPORT:-5432}:5432"
+    tmpfs:
+      - "${PG_TMPFS:-/var/lib/postgresql/data}"
+
+
+
