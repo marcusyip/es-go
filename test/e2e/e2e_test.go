@@ -40,7 +40,7 @@ func TestE2e_Success(t *testing.T) {
 	fmt.Println("TestE2e_Success: done")
 }
 
-func TestE2e_SuccessProjector(t *testing.T) {
+func TestE2e_Projector_Success(t *testing.T) {
 	testID := ksuid.New().String()
 	// Setup
 	config := es.NewConfig()

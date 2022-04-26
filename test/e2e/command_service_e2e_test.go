@@ -9,20 +9,9 @@ import (
 	"github.com/es-go/es-go/es/database"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-type MockEventHandler struct {
-	mock.Mock
-}
-
-func (m *MockEventHandler) Handle(ctx context.Context, event es.Event) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-
-}
-
-func TestE2e_MockEventHandler_Success(t *testing.T) {
+func TestE2e_DBTransaction_Success(t *testing.T) {
 	testID := ksuid.New().String()
 	// Setup
 	config := es.NewConfig()
@@ -33,11 +22,7 @@ func TestE2e_MockEventHandler_Success(t *testing.T) {
 	eventRegistry.Set("completed_event", &CompletedEvent{})
 
 	repository := es.NewAggregateRepository(config, db, eventRegistry)
-
-	mockEventHandler := new(MockEventHandler)
-	mockEventHandler.On("Handle", mock.Anything, mock.Anything).Return(nil)
-
-	repository.Subscribe("completed_event", mockEventHandler)
+	// repository.Subscribe("completed_event", mockEventHandler)
 
 	// Test
 	service := es.NewCommandService()
