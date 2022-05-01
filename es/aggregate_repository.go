@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/k0kubun/pp/v3"
 )
@@ -15,7 +15,8 @@ import (
 type AggregateRepository interface {
 	Load(aggregateID string, aggregate AggregateRoot) error
 	Save(ctx context.Context, aggregate AggregateRoot) error
-	SaveInTransaction(ctx context.Context, tx *pgx.Tx, aggregate AggregateRoot) error
+	SaveInTransaction(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot) error
+	AddProjector(eventName EventName, projector Projector)
 	Subscribe(eventName EventName, eventHandler EventHandler)
 }
 
@@ -26,6 +27,8 @@ type AggregateRepositoryImpl struct {
 	db      *pgxpool.Pool
 	// Registry of event name and reflect.Type
 	eventRegistry *EventRegistry
+	// Projectors
+	projectors map[EventName]([]Projector)
 	// Event handler
 	eventHandlers map[EventName]([]EventHandler)
 }
@@ -41,6 +44,7 @@ func NewAggregateRepository(config *Config, db *pgxpool.Pool, eventRegistry *Eve
 		db:            db,
 		eventRegistry: eventRegistry,
 		eventHandlers: map[EventName]([]EventHandler){},
+		projectors:    map[EventName]([]Projector){},
 	}
 }
 
@@ -104,22 +108,34 @@ func (r *AggregateRepositoryImpl) Load(aggregateID string, aggregate AggregateRo
 }
 
 func (r *AggregateRepositoryImpl) Save(ctx context.Context, aggregate AggregateRoot) error {
-	return r.doSave(ctx, aggregate, func(ctx context.Context, sql string, args ...any) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		panic(err)
+	}
+	err = r.doSave(ctx, tx, aggregate, func(ctx context.Context, sql string, args ...any) error {
 		result, err := r.db.Exec(ctx, sql, args...)
 		pp.Println(result)
 		return err
 	})
+	if err != nil {
+		panic(err)
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (r *AggregateRepositoryImpl) SaveInTransaction(ctx context.Context, tx *pgx.Tx, aggregate AggregateRoot) error {
-	return r.doSave(ctx, aggregate, func(ctx context.Context, sql string, args ...any) error {
-		result, err := tx.Exec(sql, args...)
+func (r *AggregateRepositoryImpl) SaveInTransaction(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot) error {
+	return r.doSave(ctx, tx, aggregate, func(ctx context.Context, sql string, args ...any) error {
+		result, err := tx.Exec(ctx, sql, args...)
 		pp.Println(result)
 		return err
 	})
 }
 
-func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate AggregateRoot, dbExecFn func(ctx context.Context, sql string, args ...any) error) error {
+func (r *AggregateRepositoryImpl) doSave(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot, dbExecFn func(ctx context.Context, sql string, args ...any) error) error {
 	changes := aggregate.GetChanges()
 	pp.Println(changes)
 
@@ -140,12 +156,35 @@ func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate Aggregat
 			return err
 		}
 	}
-
-	// Publish event in sync
+	// projectView runs synchronously
+	for _, change := range changes {
+		r.projectView(ctx, tx, change)
+	}
+	// publishEvent runs synchronously
 	for _, change := range changes {
 		r.publishEvent(ctx, change)
 	}
 	return nil
+}
+
+func (r *AggregateRepositoryImpl) AddProjector(eventName EventName, projector Projector) {
+	if r.projectors[eventName] == nil {
+		r.projectors[eventName] = make([]Projector, 0, 2)
+	}
+	r.projectors[eventName] = append(r.projectors[eventName], projector)
+}
+
+func (r *AggregateRepositoryImpl) projectView(ctx context.Context, tx pgx.Tx, event Event) {
+	eventName := event.GetEventName()
+	if r.projectors[eventName] == nil {
+		return
+	}
+	for _, projector := range r.projectors[eventName] {
+		err := projector.Handle(ctx, tx, event)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func (r *AggregateRepositoryImpl) Subscribe(eventName EventName, eventHandler EventHandler) {
