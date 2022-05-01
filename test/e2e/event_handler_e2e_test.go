@@ -19,7 +19,6 @@ type MockEventHandler struct {
 func (m *MockEventHandler) Handle(ctx context.Context, event es.Event) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
-
 }
 
 func TestE2e_MockEventHandler_Success(t *testing.T) {

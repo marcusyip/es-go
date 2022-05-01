@@ -52,8 +52,8 @@ func TestE2e_Projector_Success(t *testing.T) {
 
 	repository := es.NewAggregateRepository(config, db, eventRegistry)
 	transactionProjector := NewTransactionProjector(config, db)
-	repository.Subscribe("created_event", transactionProjector)
-	repository.Subscribe("completed_event", transactionProjector)
+	repository.AddProjector("created_event", transactionProjector)
+	repository.AddProjector("completed_event", transactionProjector)
 
 	// Test
 	service := es.NewCommandService()
@@ -87,8 +87,8 @@ func TestE2e_FailInvalidCommand(t *testing.T) {
 
 	repository := es.NewAggregateRepository(config, db, eventRegistry)
 	transactionProjector := NewTransactionProjector(config, db)
-	repository.Subscribe("created_event", transactionProjector)
-	repository.Subscribe("completed_event", transactionProjector)
+	repository.AddProjector("created_event", transactionProjector)
+	repository.AddProjector("completed_event", transactionProjector)
 
 	// Test
 	service := es.NewCommandService()
@@ -99,6 +99,7 @@ func TestE2e_FailInvalidCommand(t *testing.T) {
 	command = &CreateCommand{TransactionID: testID, Currency: "", Amount: 1.11}
 	err := service.Execute(context.Background(), command)
 	assert.Error(t, err, "should return invalid command error")
+
 	// TODO: assert transaction_views table
 
 	fmt.Println("TestE2e_FailInvalidCommand: done")

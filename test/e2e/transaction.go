@@ -13,6 +13,7 @@ var transactionStates []es.State = []es.State{
 	"processing",
 	"completed",
 }
+
 var transactionTransitions []es.Transition = []es.Transition{
 	{FromState: "initialized", ToState: "processing", EventName: "created_event"},
 	{FromState: "processing", ToState: "completed", EventName: "completed_event"},
@@ -37,9 +38,11 @@ func (t *Transaction) StateMachineEnabled() bool { return true }
 func (t *Transaction) GetCurrentState() es.State {
 	return es.State(t.Status)
 }
+
 func (t *Transaction) GetStates() []es.State {
 	return transactionStates
 }
+
 func (t *Transaction) GetTransitions() []es.Transition {
 	return transactionTransitions
 }

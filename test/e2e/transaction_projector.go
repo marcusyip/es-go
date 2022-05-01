@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/es-go/es-go/es"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/k0kubun/pp/v3"
 )
@@ -23,7 +24,7 @@ func NewTransactionProjector(config *es.Config, db *pgxpool.Pool) *TransactionPr
 	}
 }
 
-func (p *TransactionProjector) Handle(ctx context.Context, event es.Event) error {
+func (p *TransactionProjector) Handle(ctx context.Context, tx pgx.Tx, event es.Event) error {
 	transaction, _ := ctx.Value("aggregate").(*Transaction)
 	switch event.(type) {
 	case *CreatedEvent:
@@ -31,7 +32,7 @@ func (p *TransactionProjector) Handle(ctx context.Context, event es.Event) error
 INSERT INTO transaction_views
 	(id, status, currency, amount, done_by, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)`
-		result, err := p.db.Exec(ctx, sql,
+		result, err := tx.Exec(ctx, sql,
 			transaction.ID,
 			transaction.Status,
 			transaction.Currency,
@@ -55,7 +56,7 @@ SET
 	created_at=$5,
 	updated_at=$6
 WHERE id=$7`
-		result, err := p.db.Exec(ctx, sql,
+		result, err := tx.Exec(ctx, sql,
 			transaction.Status,
 			transaction.Currency,
 			transaction.Amount,
