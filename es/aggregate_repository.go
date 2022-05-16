@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/k0kubun/pp/v3"
 )
@@ -15,7 +14,7 @@ import (
 type AggregateRepository interface {
 	Load(aggregateID string, aggregate AggregateRoot) error
 	Save(ctx context.Context, aggregate AggregateRoot) error
-	SaveInTransaction(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot) error
+	SaveInTransaction(ctx context.Context, tx DBTX, aggregate AggregateRoot) error
 	AddProjector(eventName EventName, projector Projector)
 	Subscribe(eventName EventName, eventHandler EventHandler)
 }
@@ -127,7 +126,7 @@ func (r *AggregateRepositoryImpl) Save(ctx context.Context, aggregate AggregateR
 	return nil
 }
 
-func (r *AggregateRepositoryImpl) SaveInTransaction(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot) error {
+func (r *AggregateRepositoryImpl) SaveInTransaction(ctx context.Context, tx DBTX, aggregate AggregateRoot) error {
 	return r.doSave(ctx, tx, aggregate, func(ctx context.Context, sql string, args ...any) error {
 		result, err := tx.Exec(ctx, sql, args...)
 		pp.Println(result)
@@ -135,7 +134,7 @@ func (r *AggregateRepositoryImpl) SaveInTransaction(ctx context.Context, tx pgx.
 	})
 }
 
-func (r *AggregateRepositoryImpl) doSave(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot, dbExecFn func(ctx context.Context, sql string, args ...any) error) error {
+func (r *AggregateRepositoryImpl) doSave(ctx context.Context, tx DBTX, aggregate AggregateRoot, dbExecFn func(ctx context.Context, sql string, args ...any) error) error {
 	changes := aggregate.GetChanges()
 	pp.Println(changes)
 
@@ -174,7 +173,7 @@ func (r *AggregateRepositoryImpl) AddProjector(eventName EventName, projector Pr
 	r.projectors[eventName] = append(r.projectors[eventName], projector)
 }
 
-func (r *AggregateRepositoryImpl) projectView(ctx context.Context, tx pgx.Tx, event Event) {
+func (r *AggregateRepositoryImpl) projectView(ctx context.Context, tx DBTX, event Event) {
 	eventName := event.GetEventName()
 	if r.projectors[eventName] == nil {
 		return

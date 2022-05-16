@@ -51,7 +51,8 @@ func TestE2e_FailInvalidCommand(t *testing.T) {
 	eventRegistry.Set("completed_event", &CompletedEvent{})
 
 	repository := es.NewAggregateRepository(config, db, eventRegistry)
-	transactionProjector := NewTransactionProjector(config, db)
+	transactionRepository := NewTransactionRepository(db)
+	transactionProjector := NewTransactionProjector(config, transactionRepository)
 	repository.AddProjector("created_event", transactionProjector)
 	repository.AddProjector("completed_event", transactionProjector)
 

@@ -32,26 +32,21 @@ func TestE2e_Projector_Success(t *testing.T) {
 	eventRegistry.Set("completed_event", &CompletedEvent{})
 
 	repository := es.NewAggregateRepository(config, db, eventRegistry)
-	transactionProjector := NewTransactionProjector(config, db)
+	transactionRepository := NewTransactionRepository(db)
+	transactionProjector := NewTransactionProjector(config, transactionRepository)
 	repository.AddProjector("created_event", transactionProjector)
 	repository.AddProjector("completed_event", transactionProjector)
 
 	// Test
 	service := es.NewCommandService()
 	service.Register("create_command", NewCreateCommandHandler(repository))
-	service.Register("complete_command", NewCompleteCommandHandler(repository))
 
 	var command es.Command
 	command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
 	err := service.Execute(context.Background(), command)
 	assert.NoError(t, err)
-	// TODO: assert transaction_views table
 
-	command = &CompleteCommand{TransactionID: testID, DoneBy: "marcusyip"}
-	err = service.Execute(context.Background(), command)
-	assert.NoError(t, err)
-
-	// TODO: assert transaction_views table
+	transactionRepository.GetTransaction(context.Background(), db, testID)
 
 	fmt.Println("TestE2e_SuccessProjector: done")
 }
