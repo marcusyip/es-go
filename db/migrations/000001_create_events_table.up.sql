@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE events (
   aggregate_id VARCHAR (50),
   version int,
   event_type VARCHAR (50),

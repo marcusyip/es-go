@@ -7,15 +7,12 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/k0kubun/pp/v3"
 )
 
 type AggregateRepository interface {
-	Load(aggregateID string, aggregate AggregateRoot) error
+	Load(ctx context.Context, aggregateID string, aggregate AggregateRoot) error
 	Save(ctx context.Context, aggregate AggregateRoot) error
-	SaveInTransaction(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot) error
 	AddProjector(eventName EventName, projector Projector)
 	Subscribe(eventName EventName, eventHandler EventHandler)
 }
@@ -25,6 +22,8 @@ type AggregateRepositoryImpl struct {
 	// placeholder of Load SQL statement
 	loadSQL string
 	db      *pgxpool.Pool
+	// Transactor
+	transactor *Transactor
 	// Registry of event name and reflect.Type
 	eventRegistry *EventRegistry
 	// Projectors
@@ -33,7 +32,7 @@ type AggregateRepositoryImpl struct {
 	eventHandlers map[EventName]([]EventHandler)
 }
 
-func NewAggregateRepository(config *Config, db *pgxpool.Pool, eventRegistry *EventRegistry) AggregateRepository {
+func NewAggregateRepository(config *Config, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository {
 	loadSQL := fmt.Sprintf(
 		"SELECT aggregate_id, version, event_type, payload, created_at FROM %s WHERE aggregate_id = $1 ORDER BY version ASC",
 		config.TableName)
@@ -42,33 +41,32 @@ func NewAggregateRepository(config *Config, db *pgxpool.Pool, eventRegistry *Eve
 		config:        config,
 		loadSQL:       loadSQL,
 		db:            db,
+		transactor:    transactor,
 		eventRegistry: eventRegistry,
 		eventHandlers: map[EventName]([]EventHandler){},
 		projectors:    map[EventName]([]Projector){},
 	}
 }
 
-type EventModel struct {
-	// ParentID       string
-	AggregateID string `validate:"required"`
-	// SubAggregateID string
-	// ReferenceID    string
-	EventType string    `validate:"required"`
-	Version   int       `validate:"gt=0"`
-	Payload   []byte    `validate:"required"`
-	CreatedAt time.Time `validate:"required"`
-}
-
 func (r *AggregateRepositoryImpl) debug(format string, a ...any) {
 	fmt.Printf(format, a...)
 }
 
-func (r *AggregateRepositoryImpl) Load(aggregateID string, aggregate AggregateRoot) error {
+func (r *AggregateRepositoryImpl) GetTx(ctx context.Context) DBTX {
+	tx := GetContextTx(ctx)
+	if tx == nil {
+		return r.db
+	}
+	return tx
+}
+
+func (r *AggregateRepositoryImpl) Load(ctx context.Context, aggregateID string, aggregate AggregateRoot) error {
 	r.debug("Load aggregateID %s, sql=%s\n", aggregateID, r.loadSQL)
 	aggregate.SetAggregateID(aggregateID)
 
+	tx := r.GetTx(ctx)
 	// TODO: load aggregate by ID
-	rows, err := r.db.Query(context.Background(), r.loadSQL, aggregateID)
+	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID)
 	if err != nil {
 		r.debug("query error, err=%+v\n", err)
 		return err
@@ -108,45 +106,25 @@ func (r *AggregateRepositoryImpl) Load(aggregateID string, aggregate AggregateRo
 }
 
 func (r *AggregateRepositoryImpl) Save(ctx context.Context, aggregate AggregateRoot) error {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		panic(err)
-	}
-	err = r.doSave(ctx, tx, aggregate, func(ctx context.Context, sql string, args ...any) error {
-		result, err := r.db.Exec(ctx, sql, args...)
-		pp.Println(result)
-		return err
-	})
-	if err != nil {
-		panic(err)
-	}
-	err = tx.Commit(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *AggregateRepositoryImpl) SaveInTransaction(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot) error {
-	return r.doSave(ctx, tx, aggregate, func(ctx context.Context, sql string, args ...any) error {
-		result, err := tx.Exec(ctx, sql, args...)
-		pp.Println(result)
-		return err
+	// TODO: use transactor
+	return r.transactor.WithTransaction(ctx, func(ctx context.Context) error {
+		return r.doSave(ctx, aggregate)
 	})
 }
 
-func (r *AggregateRepositoryImpl) doSave(ctx context.Context, tx pgx.Tx, aggregate AggregateRoot, dbExecFn func(ctx context.Context, sql string, args ...any) error) error {
+func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate AggregateRoot) error {
 	changes := aggregate.GetChanges()
-	pp.Println(changes)
+	// pp.Println(changes)
 
+	tx := r.GetTx(ctx)
 	ctx = context.WithValue(ctx, "aggregate", aggregate)
 	for _, change := range changes {
 		commitSQL := fmt.Sprintf(
 			"INSERT INTO %s (aggregate_id, version, event_type, payload, created_at) VALUES ($1, $2, $3, $4, $5)",
 			r.config.TableName)
-
 		payloadStr, _ := json.Marshal(change.GetPayload())
-		err := dbExecFn(ctx, commitSQL,
+
+		_, err := tx.Exec(ctx, commitSQL,
 			change.GetAggregateID(),
 			change.GetVersion(),
 			change.GetEventName(),
@@ -158,10 +136,12 @@ func (r *AggregateRepositoryImpl) doSave(ctx context.Context, tx pgx.Tx, aggrega
 	}
 	// projectView runs synchronously
 	for _, change := range changes {
+		r.debug("projecting view\n")
 		r.projectView(ctx, tx, change)
 	}
 	// publishEvent runs synchronously
 	for _, change := range changes {
+		r.debug("publishing events\n")
 		r.publishEvent(ctx, change)
 	}
 	return nil
@@ -174,7 +154,7 @@ func (r *AggregateRepositoryImpl) AddProjector(eventName EventName, projector Pr
 	r.projectors[eventName] = append(r.projectors[eventName], projector)
 }
 
-func (r *AggregateRepositoryImpl) projectView(ctx context.Context, tx pgx.Tx, event Event) {
+func (r *AggregateRepositoryImpl) projectView(ctx context.Context, tx DBTX, event Event) {
 	eventName := event.GetEventName()
 	if r.projectors[eventName] == nil {
 		return
@@ -205,4 +185,15 @@ func (r *AggregateRepositoryImpl) publishEvent(ctx context.Context, event Event)
 			panic(err)
 		}
 	}
+}
+
+type EventModel struct {
+	// ParentID       string
+	AggregateID string `validate:"required"`
+	// SubAggregateID string
+	// ReferenceID    string
+	EventType string    `validate:"required"`
+	Version   int       `validate:"gt=0"`
+	Payload   []byte    `validate:"required"`
+	CreatedAt time.Time `validate:"required"`
 }

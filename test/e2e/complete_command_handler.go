@@ -20,7 +20,7 @@ func (h *CompleteCommandHandler) Handle(ctx context.Context, command es.Command)
 	completeCommand := command.(*CompleteCommand)
 
 	transaction := NewTransaction()
-	err := h.repository.Load(completeCommand.GetAggregateID(), transaction)
+	err := h.repository.Load(context.TODO(), completeCommand.GetAggregateID(), transaction)
 	if err != nil {
 		return err
 	}

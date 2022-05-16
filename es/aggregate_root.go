@@ -15,7 +15,7 @@ type BaseAggregateRoot struct {
 	AggregateRoot
 
 	ID      string
-	version int
+	Version int
 	changes []Event
 
 	states      []State
@@ -31,15 +31,15 @@ func (r *BaseAggregateRoot) SetAggregateID(aggregateID string) {
 }
 
 func (r *BaseAggregateRoot) GetVersion() int {
-	return r.version
+	return r.Version
 }
 
 func (r *BaseAggregateRoot) SetVersion(version int) {
-	r.version = version
+	r.Version = version
 }
 
 func (r *BaseAggregateRoot) NextVersion() int {
-	return r.version + 1
+	return r.Version + 1
 }
 
 func (r *BaseAggregateRoot) GetChanges() []Event {
