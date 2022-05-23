@@ -31,7 +31,6 @@ func (s *CommandService) Execute(ctx context.Context, command Command) error {
 		}
 
 		for _, err := range err.(validator.ValidationErrors) {
-
 			fmt.Println(err.Namespace()) // can differ when a custom TagNameFunc is registered or
 			fmt.Println(err.Field())     // by passing alt name to ReportError like below
 			fmt.Println(err.StructNamespace())

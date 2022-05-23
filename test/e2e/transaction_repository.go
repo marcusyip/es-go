@@ -15,16 +15,24 @@ func NewTransactionRepository(db *pgxpool.Pool) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
+func (r *TransactionRepository) GetTx(ctx context.Context) es.DBTX {
+	tx := es.GetContextTx(ctx)
+	if tx == nil {
+		return r.db
+	}
+	return tx
+}
+
 const getTransactionSQL = `-- name: CreateTransaction :one
-SELECT id, status, currency, amount, done_by, created_at, updated_at
+SELECT id, version, status, currency, amount, done_by, created_at, updated_at
 FROM transaction_views
 WHERE id = $1 LIMIT 1
 `
 
-func (r *TransactionRepository) GetTransaction(ctx context.Context, tx es.DBTX, id string) (*Transaction, error) {
-	row := tx.QueryRow(ctx, getTransactionSQL, id)
+func (r *TransactionRepository) GetTransaction(ctx context.Context, id string) (*Transaction, error) {
+	row := r.GetTx(ctx).QueryRow(ctx, getTransactionSQL, id)
 	var m Transaction
-	if err := row.Scan(&m.ID); err != nil {
+	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy, &m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -32,17 +40,17 @@ func (r *TransactionRepository) GetTransaction(ctx context.Context, tx es.DBTX, 
 
 const createTransactionSQL = `-- name: CreateTransaction :one
 INSERT INTO transaction_views (
-  id, status, currency, amount, done_by, created_at, updated_at
+  id, version, status, currency, amount, done_by, created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7
+  $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, status, currency, amount, done_by, created_at, updated_at
+RETURNING id, version, status, currency, amount, done_by, created_at, updated_at
 `
 
 func (r *TransactionRepository) CreateTransaction(ctx context.Context, tx es.DBTX, transaction *Transaction) (*Transaction, error) {
-	row := tx.QueryRow(ctx, createTransactionSQL, transaction.ID, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
+	row := tx.QueryRow(ctx, createTransactionSQL, transaction.ID, transaction.Version, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
 	var m Transaction
-	if err := row.Scan(&m.ID, &m.Status, &m.Currency, &m.Amount, &m.DoneBy, &m.CreatedAt, &m.UpdatedAt); err != nil {
+	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy, &m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -50,11 +58,11 @@ func (r *TransactionRepository) CreateTransaction(ctx context.Context, tx es.DBT
 
 const updateTransactionSQL = `-- name: UpdateTransaction :one
 UPDATE transaction_views
-SET status = $2, currency = $3, amount = $4, done_by = $5, created_at = $6, updated_at = $7
+SET version = $2, status = $3, currency = $4, amount = $5, done_by = $6, created_at = $7, updated_at = $8
 WHERE id = $1 
 `
 
 func (r *TransactionRepository) UpdateTransaction(ctx context.Context, tx es.DBTX, transaction *Transaction) error {
-	_, err := tx.Exec(ctx, updateTransactionSQL, transaction.ID, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
+	_, err := tx.Exec(ctx, updateTransactionSQL, transaction.ID, transaction.Version, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
 	return err
 }

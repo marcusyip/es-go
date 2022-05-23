@@ -1,5 +1,6 @@
-CREATE TABLE IF NOT EXISTS transaction_views (
+CREATE TABLE transaction_views (
   id varchar(255) NOT NULL,
+  version smallint NOT NULL,
   status varchar(32) NOT NULL,
   currency varchar(16) NOT NULL,
   amount numeric(36, 18) NOT NULL,
