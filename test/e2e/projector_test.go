@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 
 	"github.com/es-go/es-go/es"
 	"github.com/es-go/es-go/es/database"
@@ -46,26 +47,7 @@ var _ = Describe("Projector", func() {
 
 		commandService = es.NewCommandService()
 		commandService.Register("create_command", NewCreateCommandHandler(aggregateRepository))
-	})
-
-	Context("With using mock projector", func() {
-		var mockProjector *MockProjector
-
-		BeforeEach(func() {
-			mockProjector = new(MockProjector)
-			mockProjector.On("Handle", mock.Anything, mock.Anything).Return(nil)
-
-			aggregateRepository.Subscribe("created_event", mockProjector)
-			aggregateRepository.Subscribe("completed_event", mockProjector)
-		})
-
-		It("calls projector once", func() {
-			var command es.Command
-			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
-			err := commandService.Execute(context.Background(), command)
-			Expect(err).ToNot(HaveOccurred())
-			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
-		})
+		commandService.Register("complete_command", NewCompleteCommandHandler(aggregateRepository))
 	})
 
 	Context("Transaction does not exist", func() {
@@ -92,6 +74,61 @@ var _ = Describe("Projector", func() {
 			Expect(transaction.DoneBy).To(BeEmpty())
 			Expect(transaction.CreatedAt).ToNot(BeNil())
 			Expect(transaction.UpdatedAt).ToNot(BeNil())
+
+			command = &CompleteCommand{TransactionID: testID, DoneBy: "marcusyip"}
+			err = commandService.Execute(context.Background(), command)
+			Expect(err).ToNot(HaveOccurred())
+
+			transaction, err = transactionRepository.GetTransaction(context.Background(), testID)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(transaction).ToNot(BeNil())
+			Expect(transaction.ID).To(Equal(testID))
+			Expect(transaction.Version).To(Equal(2))
+			Expect(transaction.Status).To(Equal("completed"))
+			Expect(transaction.Currency).To(Equal("BTC"))
+			Expect(transaction.Amount).To(Equal(1.11))
+			Expect(transaction.DoneBy).To(Equal("marcusyip"))
+			Expect(transaction.CreatedAt).ToNot(BeNil())
+			Expect(transaction.UpdatedAt).ToNot(BeNil())
+		})
+	})
+
+	Context("With using mock projector", func() {
+		var mockProjector *MockProjector
+
+		BeforeEach(func() {
+			mockProjector = new(MockProjector)
+			mockProjector.On("Handle", mock.Anything, mock.Anything).Return(nil)
+
+			aggregateRepository.Subscribe("created_event", mockProjector)
+			aggregateRepository.Subscribe("completed_event", mockProjector)
+		})
+
+		It("calls projector once", func() {
+			var command es.Command
+			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			err := commandService.Execute(context.Background(), command)
+			Expect(err).ToNot(HaveOccurred())
+			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
+		})
+	})
+
+	Context("Project handles return error", func() {
+		var mockProjector *MockProjector
+
+		BeforeEach(func() {
+			mockProjector = new(MockProjector)
+			mockProjector.On("Handle", mock.Anything, mock.Anything).Return(errors.New("any error"))
+
+			aggregateRepository.AddProjector("created_event", mockProjector)
+		})
+
+		It("rollback the transaction", func() {
+			var command es.Command
+			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			err := commandService.Execute(context.Background(), command)
+			Expect(err).To(HaveOccurred())
+			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
 		})
 	})
 })

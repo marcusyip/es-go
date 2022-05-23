@@ -45,6 +45,9 @@ func (s *CommandService) Execute(ctx context.Context, command Command) error {
 		}
 		return err
 	}
-
-	return s.commandHandlers[command.GetCommandName()].Handle(ctx, command)
+	commandName := command.GetCommandName()
+	if _, ok := s.commandHandlers[commandName]; !ok {
+		panic("unregistered command: " + commandName)
+	}
+	return s.commandHandlers[commandName].Handle(ctx, command)
 }
