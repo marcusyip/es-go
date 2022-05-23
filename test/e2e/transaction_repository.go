@@ -47,7 +47,8 @@ INSERT INTO transaction_views (
 RETURNING id, version, status, currency, amount, done_by, created_at, updated_at
 `
 
-func (r *TransactionRepository) CreateTransaction(ctx context.Context, tx es.DBTX, transaction *Transaction) (*Transaction, error) {
+func (r *TransactionRepository) CreateTransaction(ctx context.Context, transaction *Transaction) (*Transaction, error) {
+	tx := r.GetTx(ctx)
 	row := tx.QueryRow(ctx, createTransactionSQL, transaction.ID, transaction.Version, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
 	var m Transaction
 	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy, &m.CreatedAt, &m.UpdatedAt); err != nil {
@@ -62,7 +63,8 @@ SET version = $2, status = $3, currency = $4, amount = $5, done_by = $6, created
 WHERE id = $1 
 `
 
-func (r *TransactionRepository) UpdateTransaction(ctx context.Context, tx es.DBTX, transaction *Transaction) error {
+func (r *TransactionRepository) UpdateTransaction(ctx context.Context, transaction *Transaction) error {
+	tx := r.GetTx(ctx)
 	_, err := tx.Exec(ctx, updateTransactionSQL, transaction.ID, transaction.Version, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
 	return err
 }

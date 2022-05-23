@@ -62,7 +62,6 @@ var _ = Describe("EventHandler", func() {
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).ToNot(HaveOccurred())
 			mockEventHandler.AssertNumberOfCalls(GinkgoT(), "Handle", 0)
-			// TODO: assert transaction_views table
 
 			command = &CompleteCommand{TransactionID: testID, DoneBy: "marcusyip"}
 			err = commandService.Execute(context.Background(), command)

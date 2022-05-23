@@ -118,5 +118,5 @@ func (t *Transaction) ApplyEvent(event es.Event) {
 		t.UpdatedAt = event.GetCreatedAt()
 	}
 	t.SetVersion(event.GetVersion())
-	fmt.Printf("Transaction.ApplyEvent %+v\n", event)
+	// fmt.Printf("Transaction.ApplyEvent %+v\n", event)
 }

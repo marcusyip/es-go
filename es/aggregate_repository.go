@@ -49,7 +49,7 @@ func NewAggregateRepository(config *Config, db *pgxpool.Pool, transactor *Transa
 }
 
 func (r *AggregateRepositoryImpl) debug(format string, a ...any) {
-	fmt.Printf(format, a...)
+	// fmt.Printf(format, a...)
 }
 
 func (r *AggregateRepositoryImpl) GetTx(ctx context.Context) DBTX {
@@ -114,7 +114,6 @@ func (r *AggregateRepositoryImpl) Save(ctx context.Context, aggregate AggregateR
 
 func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate AggregateRoot) error {
 	changes := aggregate.GetChanges()
-	// pp.Println(changes)
 
 	tx := r.GetTx(ctx)
 	ctx = context.WithValue(ctx, "aggregate", aggregate)
@@ -137,7 +136,9 @@ func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate Aggregat
 	// projectView runs synchronously
 	for _, change := range changes {
 		r.debug("projecting view\n")
-		r.projectView(ctx, tx, change)
+		if err := r.projectView(ctx, change); err != nil {
+			return err
+		}
 	}
 	// publishEvent runs synchronously
 	for _, change := range changes {
@@ -154,17 +155,18 @@ func (r *AggregateRepositoryImpl) AddProjector(eventName EventName, projector Pr
 	r.projectors[eventName] = append(r.projectors[eventName], projector)
 }
 
-func (r *AggregateRepositoryImpl) projectView(ctx context.Context, tx DBTX, event Event) {
+func (r *AggregateRepositoryImpl) projectView(ctx context.Context, event Event) error {
 	eventName := event.GetEventName()
 	if r.projectors[eventName] == nil {
-		return
+		return nil
 	}
 	for _, projector := range r.projectors[eventName] {
-		err := projector.Handle(ctx, tx, event)
+		err := projector.Handle(ctx, event)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (r *AggregateRepositoryImpl) Subscribe(eventName EventName, eventHandler EventHandler) {
@@ -181,6 +183,7 @@ func (r *AggregateRepositoryImpl) publishEvent(ctx context.Context, event Event)
 	}
 	for _, handler := range r.eventHandlers[eventName] {
 		err := handler.Handle(ctx, event)
+		// TODO: use goroutine and ignore error?
 		if err != nil {
 			panic(err)
 		}

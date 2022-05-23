@@ -20,14 +20,14 @@ func NewTransactionProjector(config *es.Config, transactionRepository *Transacti
 	}
 }
 
-func (p *TransactionProjector) Handle(ctx context.Context, tx es.DBTX, event es.Event) error {
+func (p *TransactionProjector) Handle(ctx context.Context, event es.Event) error {
 	transaction, _ := ctx.Value("aggregate").(*Transaction)
 	switch event.(type) {
 	case *CreatedEvent:
-		_, err := p.transactionRepository.CreateTransaction(ctx, tx, transaction)
+		_, err := p.transactionRepository.CreateTransaction(ctx, transaction)
 		return err
 	case *CompletedEvent:
-		return p.transactionRepository.UpdateTransaction(ctx, tx, transaction)
+		return p.transactionRepository.UpdateTransaction(ctx, transaction)
 	}
 	return nil
 }

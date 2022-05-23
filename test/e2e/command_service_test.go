@@ -53,10 +53,6 @@ var _ = Describe("CommandService", func() {
 		})
 	})
 
-	Context("Rollback", func() {
-		// TODO
-	})
-
 	Context("Invalid command", func() {
 		It("returns error", func() {
 			var command es.Command
