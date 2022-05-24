@@ -6,6 +6,7 @@ import (
 
 	"github.com/es-go/es-go/es"
 	"github.com/es-go/es-go/es/database"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -129,6 +130,15 @@ var _ = Describe("Projector", func() {
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).To(HaveOccurred())
 			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
+			// Assert no event should be created
+			var events []*es.EventModel
+			events, err = aggregateRepository.ListEventsByAggregateIDVersion(context.Background(), testID, 0)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(events).To(HaveLen(0))
+			// Assert no transaction should be created
+			transaction, err := transactionRepository.GetTransaction(context.Background(), testID)
+			Expect(err).To(MatchError(pgx.ErrNoRows))
+			Expect(transaction).To(BeNil())
 		})
 	})
 })
