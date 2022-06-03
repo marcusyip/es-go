@@ -5,6 +5,8 @@ on: push
 jobs:
 
   build:
+    env:
+      POSTGRESQL_URL: 'postgres://postgres:postgres@localhost:5432/es_go_local?sslmode=disable'
     services:
       postgres:
         image: postgres
@@ -28,6 +30,9 @@ jobs:
 
     - name: Build
       run: go build -v ./...
+
+    - name: Run migrations
+      run: migrate -database $POSTGRESQL_URL -path db/migrations up  
 
     - name: Test
       run: go test -v ./...
