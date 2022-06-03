@@ -203,7 +203,7 @@ func (r *AggregateRepositoryImpl) publishEvent(ctx context.Context, event Event)
 		err := handler.Handle(ctx, event)
 		// TODO: use goroutine and ignore error?
 		if err != nil {
-			panic(err)
+			r.debug("Event handler error %+v\n")
 		}
 	}
 }
