@@ -9,9 +9,13 @@ jobs:
       POSTGRESQL_URL: 'postgres://postgres:postgres@localhost:5432/es_go_local?sslmode=disable'
     services:
       postgres:
-        image: postgres
+        image: postgres:14
         env:
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: es_go_local
+        ports:
+          - 5432:5432
         # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
@@ -31,8 +35,17 @@ jobs:
     - name: Build
       run: go build -v ./...
 
+    - name: Install golang-migrate
+      env:
+        GOLANG_MIGRATE_VERSION: 'v4.15.2'
+      run: |
+        curl -L https://github.com/golang-migrate/migrate/releases/download/$GOLANG_MIGRATE_VERSION/migrate.linux-amd64.tar.gz | tar xvz
+        sudo mv migrate /usr/bin/
+        which migrate
+
     - name: Run migrations
-      run: migrate -database $POSTGRESQL_URL -path db/migrations up  
+      run:
+        migrate -database $POSTGRESQL_URL -path db/migrations up  
 
     - name: Test
       run: go test -v ./...
