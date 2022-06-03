@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 
 	"github.com/es-go/es-go/es"
 	"github.com/es-go/es-go/es/database"
@@ -67,6 +68,31 @@ var _ = Describe("EventHandler", func() {
 			err = commandService.Execute(context.Background(), command)
 			Expect(err).ToNot(HaveOccurred())
 			mockEventHandler.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
+		})
+	})
+
+	Context("Event handler return error", func() {
+		var mockEventHandler *MockEventHandler
+
+		BeforeEach(func() {
+			mockEventHandler = new(MockEventHandler)
+			mockEventHandler.On("Handle", mock.Anything, mock.Anything).Return(errors.New("any error"))
+
+			aggregateRepository.Subscribe("created_event", mockEventHandler)
+			aggregateRepository.Subscribe("completed_event", mockEventHandler)
+		})
+
+		It("won't rollback the transaction", func() {
+			var command es.Command
+			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			err := commandService.Execute(context.Background(), command)
+			Expect(err).ToNot(HaveOccurred())
+			mockEventHandler.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
+
+			var events []*es.EventModel
+			events, err = aggregateRepository.ListEventsByAggregateIDVersion(context.Background(), testID, 0)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(events).To(HaveLen(1))
 		})
 	})
 })
