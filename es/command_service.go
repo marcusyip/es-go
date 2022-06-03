@@ -2,7 +2,6 @@ package es
 
 import (
 	"context"
-	"fmt"
 
 	esvalidator "github.com/es-go/es-go/es/validator"
 	"github.com/go-playground/validator/v10"
@@ -30,19 +29,19 @@ func (s *CommandService) Execute(ctx context.Context, command Command) error {
 			return err
 		}
 
-		for _, err := range err.(validator.ValidationErrors) {
-			fmt.Println(err.Namespace()) // can differ when a custom TagNameFunc is registered or
-			fmt.Println(err.Field())     // by passing alt name to ReportError like below
-			fmt.Println(err.StructNamespace())
-			fmt.Println(err.StructField())
-			fmt.Println(err.Tag())
-			fmt.Println(err.ActualTag())
-			fmt.Println(err.Kind())
-			fmt.Println(err.Type())
-			fmt.Println(err.Value())
-			fmt.Println(err.Param())
-			fmt.Println()
-		}
+		// for _, err := range err.(validator.ValidationErrors) {
+		// 	fmt.Println(err.Namespace()) // can differ when a custom TagNameFunc is registered or
+		// 	fmt.Println(err.Field())     // by passing alt name to ReportError like below
+		// 	fmt.Println(err.StructNamespace())
+		// 	fmt.Println(err.StructField())
+		// 	fmt.Println(err.Tag())
+		// 	fmt.Println(err.ActualTag())
+		// 	fmt.Println(err.Kind())
+		// 	fmt.Println(err.Type())
+		// 	fmt.Println(err.Value())
+		// 	fmt.Println(err.Param())
+		// 	fmt.Println()
+		// }
 		return err
 	}
 	commandName := command.GetCommandName()
