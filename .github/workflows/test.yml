@@ -1,10 +1,9 @@
-name: Go
+name: Go Test
 
 on: push
 
 jobs:
-
-  build:
+  test:
     env:
       POSTGRESQL_URL: 'postgres://postgres:postgres@localhost:5432/es_go_local?sslmode=disable'
     services:
@@ -49,7 +48,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.18
+        go-version: 1.18.1
 
     - name: Build
       run: go build -v ./...
@@ -64,7 +63,7 @@ jobs:
 
     - name: Run migrations
       run:
-        migrate -database $POSTGRESQL_URL -path db/migrations up  
+        migrate -database $POSTGRESQL_URL -path db/migrations up
 
     - name: Test
       run: go test -v ./...
