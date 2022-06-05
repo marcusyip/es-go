@@ -50,7 +50,7 @@ var _ = Describe("CommandService", func() {
 
 			// 2. Assert version 1 created_event
 			var events []*es.EventModel
-			events, err = aggregateRepository.ListEventsByAggregateIDVersion(context.Background(), testID, 0)
+			events, err = aggregateRepository.ListEvents(context.Background(), testID, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(events).To(HaveLen(1))
 			event1 := events[0]
@@ -70,7 +70,7 @@ var _ = Describe("CommandService", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// 4. Assert version 2 completed_event
-			events, err = aggregateRepository.ListEventsByAggregateIDVersion(context.Background(), testID, 1)
+			events, err = aggregateRepository.ListEvents(context.Background(), testID, 1)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(events).To(HaveLen(1))
 			event2 := events[0]

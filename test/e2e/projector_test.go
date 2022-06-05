@@ -132,7 +132,7 @@ var _ = Describe("Projector", func() {
 			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
 			// Assert no event should be created
 			var events []*es.EventModel
-			events, err = aggregateRepository.ListEventsByAggregateIDVersion(context.Background(), testID, 0)
+			events, err = aggregateRepository.ListEvents(context.Background(), testID, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(events).To(HaveLen(0))
 			// Assert no transaction should be created
