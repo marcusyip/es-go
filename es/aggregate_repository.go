@@ -11,7 +11,7 @@ import (
 )
 
 type AggregateRepository interface {
-	ListEventsByAggregateIDVersion(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
+	ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
 	Load(ctx context.Context, aggregateID string, aggregate AggregateRoot) error
 	Save(ctx context.Context, aggregate AggregateRoot) error
 	AddProjector(eventName EventName, projector Projector)
@@ -35,7 +35,7 @@ type AggregateRepositoryImpl struct {
 
 func NewAggregateRepository(config *Config, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository {
 	loadSQL := fmt.Sprintf(
-		`-- name: ListEventsByAggregateIDVersion :list
+		`-- name: ListEvents :list
 SELECT aggregate_id, version, event_type, payload, created_at
 FROM %s 
 WHERE aggregate_id = $1 and version > $2
@@ -66,7 +66,7 @@ func (r *AggregateRepositoryImpl) GetTx(ctx context.Context) DBTX {
 	return tx
 }
 
-func (r *AggregateRepositoryImpl) ListEventsByAggregateIDVersion(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error) {
+func (r *AggregateRepositoryImpl) ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error) {
 	tx := r.GetTx(ctx)
 	// TODO: load aggregate by ID
 	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID, gteVersion)
@@ -81,7 +81,7 @@ func (r *AggregateRepositoryImpl) ListEventsByAggregateIDVersion(ctx context.Con
 		var m EventModel
 		if err := rows.Scan(&m.AggregateID, &m.Version, &m.EventType,
 			&m.Payload, &m.CreatedAt); err != nil {
-			r.debug("LoadEventsByAggregateIDVersion - scan err err=%+v\n", err)
+			r.debug("ListEvents - scan err err=%+v\n", err)
 			return nil, err
 		}
 		eventModels = append(eventModels, &m)
@@ -93,7 +93,7 @@ func (r *AggregateRepositoryImpl) Load(ctx context.Context, aggregateID string, 
 	r.debug("Load aggregateID %s, sql=%s\n", aggregateID, r.loadSQL)
 	aggregate.SetAggregateID(aggregateID)
 
-	mList, err := r.ListEventsByAggregateIDVersion(ctx, aggregateID, 0)
+	mList, err := r.ListEvents(ctx, aggregateID, 0)
 	if err != nil {
 		return err
 	}
