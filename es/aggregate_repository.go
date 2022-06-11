@@ -11,7 +11,7 @@ import (
 )
 
 type AggregateRepository[T AggregateRoot] interface {
-	WithLoader(aggregateLoader AggregateLoader)
+	WithLoader(aggregateLoader AggregateLoader[T])
 	ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
 	Load(ctx context.Context, aggregateID string) (T, error)
 	Save(ctx context.Context, aggregate AggregateRoot) error
@@ -22,7 +22,7 @@ type AggregateRepository[T AggregateRoot] interface {
 type AggregateRepositoryImpl[T AggregateRoot] struct {
 	config *Config
 	// custom aggregate load method
-	aggregateLoader AggregateLoader
+	aggregateLoader AggregateLoader[T]
 	// new aggregate callback
 	newAggregateFn func() T
 	// placeholder of Load SQL statement
@@ -67,7 +67,7 @@ func (r *AggregateRepositoryImpl[T]) debug(format string, a ...any) {
 
 type LoadFn func(ctx context.Context, aggregateID string, aggregate AggregateRoot) error
 
-func (r *AggregateRepositoryImpl[T]) WithLoader(aggregateLoader AggregateLoader) {
+func (r *AggregateRepositoryImpl[T]) WithLoader(aggregateLoader AggregateLoader[T]) {
 	r.aggregateLoader = aggregateLoader
 }
 
@@ -103,6 +103,10 @@ func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context, aggregateID
 }
 
 func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID string) (T, error) {
+	if r.aggregateLoader != nil {
+		return r.aggregateLoader.Load(ctx, aggregateID)
+	}
+
 	r.debug("Load aggregateID %s, sql=%s\n", aggregateID, r.loadSQL)
 	aggregate := r.newAggregateFn()
 	aggregate.SetAggregateID(aggregateID)
