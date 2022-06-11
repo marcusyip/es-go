@@ -43,7 +43,7 @@ var _ = Describe("Projector", func() {
 
 		transactor := es.NewTransactor(db)
 
-		aggregateRepository = es.NewAggregateRepository[*Transaction](config, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository(config, NewTransaction, db, transactor, eventRegistry)
 		transactionRepository = NewTransactionRepository(db)
 
 		commandService = es.NewCommandService()

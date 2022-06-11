@@ -33,7 +33,7 @@ var _ = Describe("CommandService", func() {
 
 		transactor := es.NewTransactor(db)
 
-		aggregateRepository = es.NewAggregateRepository[*Transaction](config, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository[*Transaction](config, NewTransaction, db, transactor, eventRegistry)
 
 		commandService = es.NewCommandService()
 		commandService.Register("create_command", NewCreateCommandHandler(aggregateRepository))

@@ -13,7 +13,7 @@ import (
 type AggregateRepository[T AggregateRoot] interface {
 	WithLoader(aggregateLoader AggregateLoader)
 	ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
-	Load(ctx context.Context, aggregateID string, newAggregateFn func() T) (T, error)
+	Load(ctx context.Context, aggregateID string) (T, error)
 	Save(ctx context.Context, aggregate AggregateRoot) error
 	AddProjector(eventName EventName, projector Projector)
 	Subscribe(eventName EventName, eventHandler EventHandler)
@@ -23,6 +23,8 @@ type AggregateRepositoryImpl[T AggregateRoot] struct {
 	config *Config
 	// custom aggregate load method
 	aggregateLoader AggregateLoader
+	// new aggregate callback
+	newAggregateFn func() T
 	// placeholder of Load SQL statement
 	loadSQL string
 	db      *pgxpool.Pool
@@ -36,7 +38,7 @@ type AggregateRepositoryImpl[T AggregateRoot] struct {
 	eventHandlers map[EventName]([]EventHandler)
 }
 
-func NewAggregateRepository[T AggregateRoot](config *Config, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository[T] {
+func NewAggregateRepository[T AggregateRoot](config *Config, newAggregateFn func() T, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository[T] {
 	loadSQL := fmt.Sprintf(
 		`-- name: ListEvents :list
 SELECT aggregate_id, version, event_type, payload, created_at
@@ -49,6 +51,7 @@ ORDER BY version ASC
 	return &AggregateRepositoryImpl[T]{
 		config:          config,
 		aggregateLoader: nil,
+		newAggregateFn:  newAggregateFn,
 		loadSQL:         loadSQL,
 		db:              db,
 		transactor:      transactor,
@@ -99,9 +102,9 @@ func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context, aggregateID
 	return eventModels, nil
 }
 
-func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID string, newAggregateFn func() T) (T, error) {
+func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID string) (T, error) {
 	r.debug("Load aggregateID %s, sql=%s\n", aggregateID, r.loadSQL)
-	aggregate := newAggregateFn()
+	aggregate := r.newAggregateFn()
 	aggregate.SetAggregateID(aggregateID)
 
 	mList, err := r.ListEvents(ctx, aggregateID, 0)
