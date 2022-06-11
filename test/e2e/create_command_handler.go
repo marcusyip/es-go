@@ -9,17 +9,16 @@ import (
 type CreateCommandHandler struct {
 	es.BaseCommandHandler
 
-	repository es.AggregateRepository
+	repository es.AggregateRepository[*Transaction]
 }
 
-func NewCreateCommandHandler(repository es.AggregateRepository) *CreateCommandHandler {
+func NewCreateCommandHandler(repository es.AggregateRepository[*Transaction]) *CreateCommandHandler {
 	return &CreateCommandHandler{repository: repository}
 }
 
 func (h *CreateCommandHandler) Handle(ctx context.Context, command es.Command) error {
 	createCommand := command.(*CreateCommand)
-	transaction := NewTransaction()
-	err := h.repository.Load(context.TODO(), createCommand.GetAggregateID(), transaction)
+	transaction, err := h.repository.Load(context.TODO(), createCommand.GetAggregateID(), NewTransaction)
 	if err != nil {
 		return err
 	}

@@ -39,11 +39,11 @@ func (t *Transaction) GetCurrentState() es.State {
 	return es.State(t.Status)
 }
 
-func (t *Transaction) GetStates() []es.State {
+func (t Transaction) GetStates() []es.State {
 	return transactionStates
 }
 
-func (t *Transaction) GetTransitions() []es.Transition {
+func (t Transaction) GetTransitions() []es.Transition {
 	return transactionTransitions
 }
 
@@ -103,7 +103,7 @@ func (t *Transaction) applyChange(event es.Event) {
 	t.AppendChange(event)
 }
 
-func (t *Transaction) ApplyEvent(event es.Event) {
+func (t Transaction) ApplyEvent(event es.Event) {
 	switch event := event.(type) {
 	case *CreatedEvent:
 		t.ID = event.GetAggregateID()
@@ -118,5 +118,4 @@ func (t *Transaction) ApplyEvent(event es.Event) {
 		t.UpdatedAt = event.GetCreatedAt()
 	}
 	t.SetVersion(event.GetVersion())
-	// fmt.Printf("Transaction.ApplyEvent %+v\n", event)
 }
