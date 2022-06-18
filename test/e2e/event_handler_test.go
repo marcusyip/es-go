@@ -83,8 +83,7 @@ var _ = Describe("EventHandler", func() {
 		})
 
 		It("won't rollback the transaction", func() {
-			var command es.Command
-			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			command := &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).ToNot(HaveOccurred())
 			mockEventHandler.AssertNumberOfCalls(GinkgoT(), "Handle", 1)

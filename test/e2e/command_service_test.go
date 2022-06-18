@@ -87,8 +87,7 @@ var _ = Describe("CommandService", func() {
 
 	Context("Invalid command", func() {
 		It("returns error", func() {
-			var command es.Command
-			command = &CreateCommand{TransactionID: testID, Currency: "", Amount: 1.11}
+			command := &CreateCommand{TransactionID: testID, Currency: "", Amount: 1.11}
 			err := commandService.Execute(context.Background(), command)
 			Expect(errors.As(err, &validator.ValidationErrors{})).To(BeTrue())
 		})
