@@ -8,6 +8,8 @@ import (
 )
 
 func TestE2e(t *testing.T) {
+	t.Parallel()
+
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "E2e Suite")
 }

@@ -57,7 +57,7 @@ var _ = Describe("CommandService", func() {
 			Expect(event1.Version).To(Equal(1))
 			Expect(event1.EventType).To(Equal("created_event"))
 			var payload1 map[string]any
-			_ = json.Unmarshal([]byte(event1.Payload), &payload1)
+			_ = json.Unmarshal(event1.Payload, &payload1)
 			Expect(payload1).To(Equal(map[string]any{
 				"currency": "BTC",
 				"amount":   1.11,
@@ -77,7 +77,7 @@ var _ = Describe("CommandService", func() {
 			Expect(event2.Version).To(Equal(2))
 			Expect(event2.EventType).To(Equal("completed_event"))
 			var payload2 map[string]any
-			_ = json.Unmarshal([]byte(event2.Payload), &payload2)
+			_ = json.Unmarshal(event2.Payload, &payload2)
 			Expect(payload2).To(Equal(map[string]any{
 				"done_by": "marcusyip",
 			}))

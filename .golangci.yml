@@ -35,12 +35,12 @@ linters:
     - durationcheck
     - errchkjson
     - errname
-    - errorlint
+    # - errorlint
     - execinquery
     - exhaustive
     - exportloopref
     # - forbidigo # to disable fmt print
-    - forcetypeassert
+    # - forcetypeassert
     # - gochecknoinits
     - gocognit
     - goconst
