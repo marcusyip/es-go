@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -97,6 +98,7 @@ func (r *AggregateRepositoryImpl[T]) GetTx(ctx context.Context) DBTX {
 func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error) {
 	tx := r.GetTx(ctx)
 	// TODO: load aggregate by ID
+	var rows pgx.Rows
 	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID, gteVersion)
 	if err != nil {
 		r.debug("query error, err=%+v\n", err)

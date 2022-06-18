@@ -40,7 +40,7 @@ var _ = Describe("EventHandler", func() {
 		eventRegistry.Set("completed_event", &CompletedEvent{})
 
 		transactor := es.NewTransactor(db)
-		aggregateRepository = es.NewAggregateRepository[*Transaction](config, NewTransaction, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository(config, NewTransaction, db, transactor, eventRegistry)
 
 		commandService = es.NewCommandService()
 		commandService.Register("create_command", NewCreateCommandHandler(aggregateRepository))

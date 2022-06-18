@@ -1,0 +1,17 @@
+run: 
+  concurrency: 4
+
+linters-settings:
+  wsl:
+  staticcheck:
+    checks:
+      - all
+      - '-SA1000' # disable the rule SA1000
+      - '-SA1004' # disable the rule SA1004
+
+linters:
+  disable-all: false
+  enable:
+    - staticcheck
+  
+fast: true
