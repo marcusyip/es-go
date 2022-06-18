@@ -25,7 +25,7 @@ func (m *MockEventHandler) Handle(ctx context.Context, event es.Event) error {
 var _ = Describe("EventHandler", func() {
 	var config *es.Config
 	var db *pgxpool.Pool
-	var aggregateRepository es.AggregateRepository
+	var aggregateRepository es.AggregateRepository[*Transaction]
 	var commandService *es.CommandService
 	var testID string
 
@@ -40,7 +40,7 @@ var _ = Describe("EventHandler", func() {
 		eventRegistry.Set("completed_event", &CompletedEvent{})
 
 		transactor := es.NewTransactor(db)
-		aggregateRepository = es.NewAggregateRepository(config, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository[*Transaction](config, NewTransaction, db, transactor, eventRegistry)
 
 		commandService = es.NewCommandService()
 		commandService.Register("create_command", NewCreateCommandHandler(aggregateRepository))

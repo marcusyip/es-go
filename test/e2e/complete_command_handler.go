@@ -9,18 +9,17 @@ import (
 type CompleteCommandHandler struct {
 	es.BaseCommandHandler
 
-	repository es.AggregateRepository
+	repository es.AggregateRepository[*Transaction]
 }
 
-func NewCompleteCommandHandler(repository es.AggregateRepository) *CompleteCommandHandler {
+func NewCompleteCommandHandler(repository es.AggregateRepository[*Transaction]) *CompleteCommandHandler {
 	return &CompleteCommandHandler{repository: repository}
 }
 
 func (h *CompleteCommandHandler) Handle(ctx context.Context, command es.Command) error {
 	completeCommand := command.(*CompleteCommand)
 
-	transaction := NewTransaction()
-	err := h.repository.Load(context.TODO(), completeCommand.GetAggregateID(), transaction)
+	transaction, err := h.repository.Load(context.TODO(), completeCommand.GetAggregateID())
 	if err != nil {
 		return err
 	}
