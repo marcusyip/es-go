@@ -17,7 +17,7 @@ import (
 var _ = Describe("CommandService", func() {
 	var config *es.Config
 	var db *pgxpool.Pool
-	var aggregateRepository es.AggregateRepository
+	var aggregateRepository es.AggregateRepository[*Transaction]
 	var commandService *es.CommandService
 	var testID string
 
@@ -33,7 +33,7 @@ var _ = Describe("CommandService", func() {
 
 		transactor := es.NewTransactor(db)
 
-		aggregateRepository = es.NewAggregateRepository(config, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository[*Transaction](config, NewTransaction, db, transactor, eventRegistry)
 
 		commandService = es.NewCommandService()
 		commandService.Register("create_command", NewCreateCommandHandler(aggregateRepository))

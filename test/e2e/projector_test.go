@@ -26,7 +26,7 @@ func (m *MockProjector) Handle(ctx context.Context, event es.Event) error {
 var _ = Describe("Projector", func() {
 	var config *es.Config
 	var db *pgxpool.Pool
-	var aggregateRepository es.AggregateRepository
+	var aggregateRepository es.AggregateRepository[*Transaction]
 	var transactionRepository *TransactionRepository
 	var commandService *es.CommandService
 	var testID string
@@ -43,7 +43,7 @@ var _ = Describe("Projector", func() {
 
 		transactor := es.NewTransactor(db)
 
-		aggregateRepository = es.NewAggregateRepository(config, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository(config, NewTransaction, db, transactor, eventRegistry)
 		transactionRepository = NewTransactionRepository(db)
 
 		commandService = es.NewCommandService()

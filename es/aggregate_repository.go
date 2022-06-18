@@ -10,16 +10,21 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type AggregateRepository interface {
+type AggregateRepository[T AggregateRoot] interface {
+	WithLoader(aggregateLoader AggregateLoader[T])
 	ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
-	Load(ctx context.Context, aggregateID string, aggregate AggregateRoot) error
+	Load(ctx context.Context, aggregateID string) (T, error)
 	Save(ctx context.Context, aggregate AggregateRoot) error
 	AddProjector(eventName EventName, projector Projector)
 	Subscribe(eventName EventName, eventHandler EventHandler)
 }
 
-type AggregateRepositoryImpl struct {
+type AggregateRepositoryImpl[T AggregateRoot] struct {
 	config *Config
+	// custom aggregate load method
+	aggregateLoader AggregateLoader[T]
+	// new aggregate callback
+	newAggregateFn func() T
 	// placeholder of Load SQL statement
 	loadSQL string
 	db      *pgxpool.Pool
@@ -33,7 +38,7 @@ type AggregateRepositoryImpl struct {
 	eventHandlers map[EventName]([]EventHandler)
 }
 
-func NewAggregateRepository(config *Config, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository {
+func NewAggregateRepository[T AggregateRoot](config *Config, newAggregateFn func() T, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository[T] {
 	loadSQL := fmt.Sprintf(
 		`-- name: ListEvents :list
 SELECT aggregate_id, version, event_type, payload, created_at
@@ -43,22 +48,30 @@ ORDER BY version ASC
 `,
 		config.TableName)
 
-	return &AggregateRepositoryImpl{
-		config:        config,
-		loadSQL:       loadSQL,
-		db:            db,
-		transactor:    transactor,
-		eventRegistry: eventRegistry,
-		eventHandlers: map[EventName]([]EventHandler){},
-		projectors:    map[EventName]([]Projector){},
+	return &AggregateRepositoryImpl[T]{
+		config:          config,
+		aggregateLoader: nil,
+		newAggregateFn:  newAggregateFn,
+		loadSQL:         loadSQL,
+		db:              db,
+		transactor:      transactor,
+		eventRegistry:   eventRegistry,
+		eventHandlers:   map[EventName]([]EventHandler){},
+		projectors:      map[EventName]([]Projector){},
 	}
 }
 
-func (r *AggregateRepositoryImpl) debug(format string, a ...any) {
+func (r *AggregateRepositoryImpl[T]) debug(format string, a ...any) {
 	// fmt.Printf(format, a...)
 }
 
-func (r *AggregateRepositoryImpl) GetTx(ctx context.Context) DBTX {
+type LoadFn func(ctx context.Context, aggregateID string, aggregate AggregateRoot) error
+
+func (r *AggregateRepositoryImpl[T]) WithLoader(aggregateLoader AggregateLoader[T]) {
+	r.aggregateLoader = aggregateLoader
+}
+
+func (r *AggregateRepositoryImpl[T]) GetTx(ctx context.Context) DBTX {
 	tx := GetContextTx(ctx)
 	if tx == nil {
 		return r.db
@@ -66,7 +79,7 @@ func (r *AggregateRepositoryImpl) GetTx(ctx context.Context) DBTX {
 	return tx
 }
 
-func (r *AggregateRepositoryImpl) ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error) {
+func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error) {
 	tx := r.GetTx(ctx)
 	// TODO: load aggregate by ID
 	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID, gteVersion)
@@ -89,13 +102,19 @@ func (r *AggregateRepositoryImpl) ListEvents(ctx context.Context, aggregateID st
 	return eventModels, nil
 }
 
-func (r *AggregateRepositoryImpl) Load(ctx context.Context, aggregateID string, aggregate AggregateRoot) error {
+func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID string) (T, error) {
+	if r.aggregateLoader != nil {
+		return r.aggregateLoader.Load(ctx, aggregateID)
+	}
+
 	r.debug("Load aggregateID %s, sql=%s\n", aggregateID, r.loadSQL)
+	aggregate := r.newAggregateFn()
 	aggregate.SetAggregateID(aggregateID)
 
 	mList, err := r.ListEvents(ctx, aggregateID, 0)
 	if err != nil {
-		return err
+		var result T
+		return result, err
 	}
 
 	for _, m := range mList {
@@ -120,17 +139,17 @@ func (r *AggregateRepositoryImpl) Load(ctx context.Context, aggregateID string, 
 		// r.debug("============= Load - 2\n")
 		// pp.Println(aggregate)
 	}
-	return nil
+	return aggregate, nil
 }
 
-func (r *AggregateRepositoryImpl) Save(ctx context.Context, aggregate AggregateRoot) error {
+func (r *AggregateRepositoryImpl[T]) Save(ctx context.Context, aggregate AggregateRoot) error {
 	// TODO: use transactor
 	return r.transactor.WithTransaction(ctx, func(ctx context.Context) error {
 		return r.doSave(ctx, aggregate)
 	})
 }
 
-func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate AggregateRoot) error {
+func (r *AggregateRepositoryImpl[T]) doSave(ctx context.Context, aggregate AggregateRoot) error {
 	changes := aggregate.GetChanges()
 
 	tx := r.GetTx(ctx)
@@ -166,14 +185,14 @@ func (r *AggregateRepositoryImpl) doSave(ctx context.Context, aggregate Aggregat
 	return nil
 }
 
-func (r *AggregateRepositoryImpl) AddProjector(eventName EventName, projector Projector) {
+func (r *AggregateRepositoryImpl[T]) AddProjector(eventName EventName, projector Projector) {
 	if r.projectors[eventName] == nil {
 		r.projectors[eventName] = make([]Projector, 0, 2)
 	}
 	r.projectors[eventName] = append(r.projectors[eventName], projector)
 }
 
-func (r *AggregateRepositoryImpl) projectView(ctx context.Context, event Event) error {
+func (r *AggregateRepositoryImpl[T]) projectView(ctx context.Context, event Event) error {
 	eventName := event.GetEventName()
 	if r.projectors[eventName] == nil {
 		return nil
@@ -187,14 +206,14 @@ func (r *AggregateRepositoryImpl) projectView(ctx context.Context, event Event) 
 	return nil
 }
 
-func (r *AggregateRepositoryImpl) Subscribe(eventName EventName, eventHandler EventHandler) {
+func (r *AggregateRepositoryImpl[T]) Subscribe(eventName EventName, eventHandler EventHandler) {
 	if r.eventHandlers[eventName] == nil {
 		r.eventHandlers[eventName] = make([]EventHandler, 0, 2)
 	}
 	r.eventHandlers[eventName] = append(r.eventHandlers[eventName], eventHandler)
 }
 
-func (r *AggregateRepositoryImpl) publishEvent(ctx context.Context, event Event) {
+func (r *AggregateRepositoryImpl[T]) publishEvent(ctx context.Context, event Event) {
 	eventName := event.GetEventName()
 	if r.eventHandlers[eventName] == nil {
 		return

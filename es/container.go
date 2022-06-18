@@ -8,10 +8,10 @@ import (
 type Container struct {
 	config              *Config
 	db                  *pgxpool.Pool
-	aggregateRepository AggregateRepository
+	aggregateRepository AggregateRepository[AggregateRoot]
 }
 
-func NewContainer(config *Config, db *pgxpool.Pool, aggregateRepository AggregateRepository) *Container {
+func NewContainer(config *Config, db *pgxpool.Pool, aggregateRepository AggregateRepository[AggregateRoot]) *Container {
 	return &Container{
 		config:              config,
 		db:                  db,
@@ -27,6 +27,6 @@ func (c *Container) GetDB() *pgxpool.Pool {
 	return c.db
 }
 
-func (c *Container) GetAggregateRepository() AggregateRepository {
+func (c *Container) GetAggregateRepository() AggregateRepository[AggregateRoot] {
 	return c.aggregateRepository
 }
