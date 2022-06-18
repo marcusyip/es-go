@@ -2,6 +2,7 @@ package es
 
 import (
 	"context"
+	"errors"
 
 	esvalidator "github.com/es-go/es-go/es/validator"
 	"github.com/go-playground/validator/v10"
@@ -25,7 +26,8 @@ func (s *CommandService) Execute(ctx context.Context, command Command) error {
 	validate := esvalidator.New()
 	err := validate.Struct(command)
 	if err != nil {
-		if _, ok := err.(*validator.InvalidValidationError); ok {
+		var invalidValidationError *validator.InvalidValidationError
+		if errors.As(err, &invalidValidationError) {
 			return err
 		}
 

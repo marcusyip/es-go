@@ -40,7 +40,7 @@ var _ = Describe("EventHandler", func() {
 		eventRegistry.Set("completed_event", &CompletedEvent{})
 
 		transactor := es.NewTransactor(db)
-		aggregateRepository = es.NewAggregateRepository[*Transaction](config, NewTransaction, db, transactor, eventRegistry)
+		aggregateRepository = es.NewAggregateRepository(config, NewTransaction, db, transactor, eventRegistry)
 
 		commandService = es.NewCommandService()
 		commandService.Register("create_command", NewCreateCommandHandler(aggregateRepository))
@@ -83,8 +83,7 @@ var _ = Describe("EventHandler", func() {
 		})
 
 		It("won't rollback the transaction", func() {
-			var command es.Command
-			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			command := &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).ToNot(HaveOccurred())
 			mockEventHandler.AssertNumberOfCalls(GinkgoT(), "Handle", 1)

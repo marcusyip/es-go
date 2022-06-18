@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -68,13 +69,12 @@ func (t *Transaction) applyChange(event es.Event) {
 	validate := esvalidator.New()
 	err := validate.Struct(event)
 	if err != nil {
-		if _, ok := err.(*validator.InvalidValidationError); ok {
-			fmt.Println(err)
+		var invalidValidationError *validator.InvalidValidationError
+		if errors.As(err, &invalidValidationError) {
 			panic(err)
 		}
 
 		for _, err := range err.(validator.ValidationErrors) {
-
 			fmt.Println(err.Namespace()) // can differ when a custom TagNameFunc is registered or
 			fmt.Println(err.Field())     // by passing alt name to ReportError like below
 			fmt.Println(err.StructNamespace())
@@ -97,7 +97,8 @@ func (t *Transaction) applyChange(event es.Event) {
 
 	eventName := event.GetEventName()
 	if !es.IsValidStateMachineTransition(t, prevState, nextState, eventName) {
-		panic(fmt.Errorf("invalid state transition, from_state=%s, to_state=%s, event_name=%s", prevState, nextState, eventName))
+		panic(fmt.Errorf("invalid state transition, from_state=%s, to_state=%s, event_name=%s",
+			prevState, nextState, eventName))
 	}
 
 	t.AppendChange(event)

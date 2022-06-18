@@ -18,8 +18,8 @@ type BaseAggregateRoot struct {
 	Version int
 	changes []Event
 
-	states      []State
-	transitions []Transition
+	// states      []State
+	// transitions []Transition
 }
 
 func (r *BaseAggregateRoot) GetAggregateID() string {

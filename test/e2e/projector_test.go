@@ -106,8 +106,7 @@ var _ = Describe("Projector", func() {
 		})
 
 		It("calls projector once", func() {
-			var command es.Command
-			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			command := &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).ToNot(HaveOccurred())
 			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
@@ -125,8 +124,7 @@ var _ = Describe("Projector", func() {
 		})
 
 		It("rollback the transaction", func() {
-			var command es.Command
-			command = &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			command := &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).To(HaveOccurred())
 			mockProjector.AssertNumberOfCalls(GinkgoT(), "Handle", 1)

@@ -32,7 +32,8 @@ WHERE id = $1 LIMIT 1
 func (r *TransactionRepository) GetTransaction(ctx context.Context, id string) (*Transaction, error) {
 	row := r.GetTx(ctx).QueryRow(ctx, getTransactionSQL, id)
 	var m Transaction
-	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy, &m.CreatedAt, &m.UpdatedAt); err != nil {
+	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy,
+		&m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -49,9 +50,12 @@ RETURNING id, version, status, currency, amount, done_by, created_at, updated_at
 
 func (r *TransactionRepository) CreateTransaction(ctx context.Context, transaction *Transaction) (*Transaction, error) {
 	tx := r.GetTx(ctx)
-	row := tx.QueryRow(ctx, createTransactionSQL, transaction.ID, transaction.Version, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
+	row := tx.QueryRow(ctx, createTransactionSQL, transaction.ID, transaction.Version,
+		transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy,
+		transaction.CreatedAt, transaction.UpdatedAt)
 	var m Transaction
-	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy, &m.CreatedAt, &m.UpdatedAt); err != nil {
+	if err := row.Scan(&m.ID, &m.Version, &m.Status, &m.Currency, &m.Amount, &m.DoneBy,
+		&m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -65,6 +69,8 @@ WHERE id = $1
 
 func (r *TransactionRepository) UpdateTransaction(ctx context.Context, transaction *Transaction) error {
 	tx := r.GetTx(ctx)
-	_, err := tx.Exec(ctx, updateTransactionSQL, transaction.ID, transaction.Version, transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy, transaction.CreatedAt, transaction.UpdatedAt)
+	_, err := tx.Exec(ctx, updateTransactionSQL, transaction.ID, transaction.Version,
+		transaction.Status, transaction.Currency, transaction.Amount, transaction.DoneBy,
+		transaction.CreatedAt, transaction.UpdatedAt)
 	return err
 }
