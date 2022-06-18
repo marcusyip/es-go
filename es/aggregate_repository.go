@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -54,7 +53,9 @@ type AggregateRepositoryImpl[T AggregateRoot] struct {
 	eventHandlers map[EventName]([]EventHandler)
 }
 
-func NewAggregateRepository[T AggregateRoot](config *Config, newAggregateFn func() T, db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry) AggregateRepository[T] {
+func NewAggregateRepository[T AggregateRoot](config *Config, newAggregateFn func() T,
+	db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry,
+) AggregateRepository[T] {
 	loadSQL := fmt.Sprintf(
 		`-- name: ListEvents :list
 SELECT aggregate_id, version, event_type, payload, created_at
@@ -95,10 +96,10 @@ func (r *AggregateRepositoryImpl[T]) GetTx(ctx context.Context) DBTX {
 	return tx
 }
 
-func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error) {
+func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
+	aggregateID string, gteVersion int,
+) ([]*EventModel, error) {
 	tx := r.GetTx(ctx)
-	// TODO: load aggregate by ID
-	var rows pgx.Rows
 	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID, gteVersion)
 	if err != nil {
 		r.debug("query error, err=%+v\n", err)
@@ -175,9 +176,12 @@ func (r *AggregateRepositoryImpl[T]) doSave(ctx context.Context, aggregate Aggre
 		commitSQL := fmt.Sprintf(
 			"INSERT INTO %s (aggregate_id, version, event_type, payload, created_at) VALUES ($1, $2, $3, $4, $5)",
 			r.config.TableName)
-		payloadStr, _ := json.Marshal(change.GetPayload())
+		payloadStr, err := json.Marshal(change.GetPayload())
+		if err != nil {
+			panic(err)
+		}
 
-		_, err := tx.Exec(ctx, commitSQL,
+		_, err = tx.Exec(ctx, commitSQL,
 			change.GetAggregateID(),
 			change.GetVersion(),
 			change.GetEventName(),

@@ -97,7 +97,8 @@ func (t *Transaction) applyChange(event es.Event) {
 
 	eventName := event.GetEventName()
 	if !es.IsValidStateMachineTransition(t, prevState, nextState, eventName) {
-		panic(fmt.Errorf("invalid state transition, from_state=%s, to_state=%s, event_name=%s", prevState, nextState, eventName))
+		panic(fmt.Errorf("invalid state transition, from_state=%s, to_state=%s, event_name=%s",
+			prevState, nextState, eventName))
 	}
 
 	t.AppendChange(event)

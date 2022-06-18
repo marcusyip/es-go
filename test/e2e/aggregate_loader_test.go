@@ -59,5 +59,4 @@ var _ = Describe("AggregateLoader", func() {
 	})
 
 	// TODO: Test without aggregate loader
-
 })

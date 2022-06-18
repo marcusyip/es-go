@@ -1,12 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/es-go/es-go/es"
-	"github.com/es-go/es-go/es/database"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -26,24 +23,8 @@ func Execute() {
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
-			config := es.NewConfig()
-			db := database.Connect()
-
-			sql := fmt.Sprintf(
-				"INSERT INTO %s (aggregate_id, version, event_type, payload, created_at) VALUES ($1, $2, $3, $4, $5)",
-				config.TableName)
-
-			_, err := db.Exec(context.Background(), sql, "test-id", 1, "created_event", []byte("{\"amount\":100,\"currency\":\"HKD\"}"), "NOW()")
-			if err != nil {
-				panic(err)
-			}
-
-			// conf := config.ProvideConfig()
-			// app, err := app.BuildApp(conf)
-			// if err != nil {
-			// 	panic(err)
-			// }
-			// app.Start()
+			// config := es.NewConfig()
+			// db := database.Connect()
 		},
 	}
 	cmd.AddCommand(
