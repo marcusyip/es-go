@@ -21,7 +21,7 @@ func NewTransactionProjector(config *es.Config, transactionRepository *Transacti
 }
 
 func (p *TransactionProjector) Handle(ctx context.Context, event es.Event) error {
-	transaction, _ := ctx.Value("aggregate").(*Transaction)
+	transaction := es.GetContextAggregate(ctx).(*Transaction)
 	switch event.(type) {
 	case *CreatedEvent:
 		_, err := p.transactionRepository.CreateTransaction(ctx, transaction)

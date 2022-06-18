@@ -10,6 +10,21 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+type aggregateKey struct{}
+
+// injectTx injects transaction to context
+func WithContextAggregate(ctx context.Context, aggregate AggregateRoot) context.Context {
+	return context.WithValue(ctx, aggregateKey{}, aggregate)
+}
+
+// extractTx extracts transaction from context
+func GetContextAggregate(ctx context.Context) AggregateRoot {
+	if aggregate, ok := ctx.Value(aggregateKey{}).(AggregateRoot); ok {
+		return aggregate
+	}
+	return nil
+}
+
 type AggregateRepository[T AggregateRoot] interface {
 	WithLoader(aggregateLoader AggregateLoader[T])
 	ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
@@ -153,7 +168,7 @@ func (r *AggregateRepositoryImpl[T]) doSave(ctx context.Context, aggregate Aggre
 	changes := aggregate.GetChanges()
 
 	tx := r.GetTx(ctx)
-	ctx = context.WithValue(ctx, "aggregate", aggregate)
+	ctx = WithContextAggregate(ctx, aggregate)
 	for _, change := range changes {
 		commitSQL := fmt.Sprintf(
 			"INSERT INTO %s (aggregate_id, version, event_type, payload, created_at) VALUES ($1, $2, $3, $4, $5)",
