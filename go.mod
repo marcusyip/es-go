@@ -7,7 +7,7 @@ require (
 	github.com/jackc/pgconn v1.12.1
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/k0kubun/pp/v3 v3.1.0
-	github.com/lib/pq v1.10.4
+	github.com/lib/pq v1.10.6
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
 	github.com/segmentio/ksuid v1.0.4
