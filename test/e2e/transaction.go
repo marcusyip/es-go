@@ -7,7 +7,7 @@ import (
 
 	"github.com/es-go/es-go/es"
 	esvalidator "github.com/es-go/es-go/es/validator"
-	"github.com/go-playground/validator/v10"
+	validator "github.com/go-playground/validator/v10"
 )
 
 var transactionStates []es.State = []es.State{

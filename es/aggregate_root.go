@@ -12,8 +12,6 @@ type AggregateRoot interface {
 }
 
 type BaseAggregateRoot struct {
-	AggregateRoot
-
 	ID      string
 	Version int
 	changes []Event
