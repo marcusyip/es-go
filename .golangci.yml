@@ -86,7 +86,7 @@ linters:
     - unconvert
     - unparam
     # - varnamelen
-    - wastedassign
+    # - wastedassign
     - whitespace
     # - wrapcheck
 
