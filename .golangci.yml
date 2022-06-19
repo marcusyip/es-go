@@ -90,4 +90,4 @@ linters:
     - whitespace
     # - wrapcheck
 
-fast: true
+# fast: true
