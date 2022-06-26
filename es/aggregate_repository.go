@@ -36,6 +36,8 @@ type AggregateRepository[T AggregateRoot] interface {
 
 type AggregateRepositoryImpl[T AggregateRoot] struct {
 	config *Config
+	// logger
+	// logger *zap.Logger
 	// custom aggregate load method
 	aggregateLoader AggregateLoader[T]
 	// new aggregate callback
