@@ -3,6 +3,7 @@ package es
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	esvalidator "github.com/es-go/es-go/es/validator"
 	"github.com/go-playground/validator/v10"
@@ -28,7 +29,7 @@ func (s *CommandService) Execute(ctx context.Context, command Command) error {
 	if err != nil {
 		var invalidValidationError *validator.InvalidValidationError
 		if errors.As(err, &invalidValidationError) {
-			return err
+			panic(err)
 		}
 
 		// for _, err := range err.(validator.ValidationErrors) {
@@ -44,7 +45,7 @@ func (s *CommandService) Execute(ctx context.Context, command Command) error {
 		// 	fmt.Println(err.Param())
 		// 	fmt.Println()
 		// }
-		return err
+		return fmt.Errorf("Execute validate.Struct error: %w", err)
 	}
 	commandName := command.GetCommandName()
 	if _, ok := s.commandHandlers[commandName]; !ok {
