@@ -1,5 +1,6 @@
 ![test](https://github.com/marcusyip/es-go/actions/workflows/test.yml/badge.svg)
 ![lint](https://github.com/marcusyip/es-go/actions/workflows/lint.yml/badge.svg)
+[![codecov](https://codecov.io/gh/marcusyip/es-go/branch/main/graph/badge.svg?token=9EP43TF3X4)](https://codecov.io/gh/marcusyip/es-go)
 
 `Caution: the library concept used in other language and projects. BUT this golang library is an experimental implementation`
 
