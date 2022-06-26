@@ -103,7 +103,7 @@ func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
 	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID, gteVersion)
 	if err != nil {
 		r.debug("query error, err=%+v\n", err)
-		return nil, err
+		return nil, fmt.Errorf("ListEvents tx.Query error: %w", err)
 	}
 	defer rows.Close()
 	// don't know the size of rows
@@ -113,7 +113,7 @@ func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
 		if err := rows.Scan(&m.AggregateID, &m.Version, &m.EventType,
 			&m.Payload, &m.CreatedAt); err != nil {
 			r.debug("ListEvents - scan err err=%+v\n", err)
-			return nil, err
+			return nil, fmt.Errorf("ListEvents rows.Scan error: %w", err)
 		}
 		eventModels = append(eventModels, &m)
 	}
@@ -132,7 +132,7 @@ func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID strin
 	mList, err := r.ListEvents(ctx, aggregateID, 0)
 	if err != nil {
 		var result T
-		return result, err
+		return result, fmt.Errorf("Load error: %w", err)
 	}
 
 	for _, m := range mList {
@@ -188,14 +188,14 @@ func (r *AggregateRepositoryImpl[T]) doSave(ctx context.Context, aggregate Aggre
 			string(payloadStr),
 			change.GetCreatedAt())
 		if err != nil {
-			return err
+			return fmt.Errorf("Save tx.Exec error: %w", err)
 		}
 	}
 	// projectView runs synchronously
 	for _, change := range changes {
 		r.debug("projecting view\n")
 		if err := r.projectView(ctx, change); err != nil {
-			return err
+			return fmt.Errorf("Save projectView error: %w", err)
 		}
 	}
 	// publishEvent runs synchronously
@@ -243,7 +243,7 @@ func (r *AggregateRepositoryImpl[T]) publishEvent(ctx context.Context, event Eve
 		err := handler.Handle(ctx, event)
 		// TODO: use goroutine and ignore error?
 		if err != nil {
-			r.debug("Event handler error %+v\n")
+			r.debug("Event handler error %+v\n", err)
 		}
 	}
 }
