@@ -13,7 +13,3 @@ type BaseEventHandler struct {
 func NewBaseEventHandler(config *Config) *BaseEventHandler {
 	return &BaseEventHandler{config: config}
 }
-
-func (h *BaseEventHandler) Handle(ctx context.Context, event Event) error {
-	return nil
-}

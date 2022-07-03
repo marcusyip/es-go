@@ -15,7 +15,3 @@ type BaseProjector struct {
 func NewBaseProjector(config *Config) *BaseProjector {
 	return &BaseProjector{config: config}
 }
-
-func (h *BaseProjector) Handle(ctx context.Context, event Event) error {
-	return nil
-}
