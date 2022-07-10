@@ -9,13 +9,12 @@ import (
 type TransactionProjector struct {
 	es.BaseProjector
 
-	config                *es.Config
 	transactionRepository *TransactionRepository
 }
 
 func NewTransactionProjector(config *es.Config, transactionRepository *TransactionRepository) *TransactionProjector {
 	return &TransactionProjector{
-		config:                config,
+		BaseProjector:         *es.NewBaseProjector(config),
 		transactionRepository: transactionRepository,
 	}
 }
