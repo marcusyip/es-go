@@ -2,7 +2,12 @@
 ![lint](https://github.com/marcusyip/es-go/actions/workflows/lint.yml/badge.svg)
 [![codecov](https://codecov.io/gh/marcusyip/es-go/branch/main/graph/badge.svg?token=9EP43TF3X4)](https://codecov.io/gh/marcusyip/es-go)
 
-`Caution: the library concept used in other language and projects. BUT this golang library is an experimental implementation`
+```
+Caution:
+
+The library concept used in other language and projects.
+BUT this golang library is an experimental implementation
+```
 
 ## Overview
 
@@ -21,8 +26,27 @@ es-go is an event sourcing library with simplied CQRS implementation
 - Current CQRS implementation mostly handle projection in another DB
   - event and projection are near real time consistence only
   - some use cases need strong consistence
+  
+For example,
 
-### Different Data Aspects
+```txt
+es_go_local=# select * from events
+        aggregate_id         | version |   event_type    |               payload               |         created_at       
+  
+-----------------------------+---------+-----------------+-------------------------------------+----------------------------
+ 2C11YkaaUdlHhAx0HRlhKIFk98u |       1 | created_event   | {"amount": 1.11, "currency": "BTC"} | 2022-07-16 15:08:46.831039
+ 2C11YkaaUdlHhAx0HRlhKIFk98u |       2 | completed_event | {"done_by": "marcusyip"}            | 2022-07-16 15:08:46.836044
+ ```
+
+projection
+```txt
+es_go_local=# select * from transaction_views
+             id              | version |  status   | currency |        amount        |  done_by  |         created_at         |         updated_at         
+-----------------------------+---------+-----------+----------+----------------------+-----------+----------------------------+----------------------------
+ 2C11YoSkPAuENcKtf9o8W1Hbb2R |       2 | completed | BTC      | 1.110000000000000000 | marcusyip | 2022-07-16 15:08:46.912425 | 2022-07-16 15:08:46.919962
+```
+
+### Different data schema design aspects
 
 | Aspects | Examples | 
 | ---- | -------- | 
@@ -30,7 +54,7 @@ es-go is an event sourcing library with simplied CQRS implementation
 | Data knowledge | Postgresql does not have knowledge on JSON or JSONB columns |
 
 ### es-go libraray
-- the event data (Diff based data) as the source of truth. Transform and aggregate events to projection (Latest State data)
+- the event data (Diff based data) as the source of truth. Transform and aggregate events to projection (Latest state data)
 - Application System has the knowledge on data schema, but database does not have knowledge
 
 ## How to run test
