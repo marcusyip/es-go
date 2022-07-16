@@ -71,7 +71,7 @@ var _ = Describe("EventHandler", func() {
 		})
 	})
 
-	Context("Event handler return error", func() {
+	Context("Mock event handler return error", func() {
 		var mockEventHandler *MockEventHandler
 
 		BeforeEach(func() {
@@ -87,6 +87,28 @@ var _ = Describe("EventHandler", func() {
 			err := commandService.Execute(context.Background(), command)
 			Expect(err).ToNot(HaveOccurred())
 			mockEventHandler.AssertNumberOfCalls(GinkgoT(), "Handle", 1)
+
+			var events []*es.EventModel
+			events, err = aggregateRepository.ListEvents(context.Background(), testID, 0)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(events).To(HaveLen(1))
+		})
+	})
+
+	Context("LogEventHandler print log", func() {
+		var eventHandler *LogEventHandler
+
+		BeforeEach(func() {
+			eventHandler = NewLogEventHandler(config, es.NewLogger())
+
+			aggregateRepository.Subscribe("created_event", eventHandler)
+			aggregateRepository.Subscribe("completed_event", eventHandler)
+		})
+
+		It("won't rollback the transaction", func() {
+			command := &CreateCommand{TransactionID: testID, Currency: "BTC", Amount: 1.11}
+			err := commandService.Execute(context.Background(), command)
+			Expect(err).ToNot(HaveOccurred())
 
 			var events []*es.EventModel
 			events, err = aggregateRepository.ListEvents(context.Background(), testID, 0)
