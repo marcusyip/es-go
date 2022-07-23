@@ -122,9 +122,29 @@ func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
 	return eventModels, nil
 }
 
-func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID string) (T, error) {
+type LoadOption struct {
+	ParentID string
+}
+
+func WithParentID(parentID string) func(opt LoadOption) LoadOption {
+	return func(opt LoadOption) LoadOption {
+		opt.ParentID = parentID
+		return opt
+	}
+}
+
+func (r *AggregateRepositoryImpl[T]) Load(
+	ctx context.Context,
+	aggregateID string,
+	opts ...func(LoadOption) LoadOption,
+) (T, error) {
+	var loadOption LoadOption
+	for _, opt := range opts {
+		loadOption = opt(loadOption)
+	}
+
 	if r.aggregateLoader != nil {
-		return r.aggregateLoader.Load(ctx, aggregateID)
+		return r.aggregateLoader.Load(ctx, aggregateID, &loadOption)
 	}
 
 	r.debug("Load aggregateID %s, sql=%s\n", aggregateID, r.loadSQL)
@@ -163,7 +183,6 @@ func (r *AggregateRepositoryImpl[T]) Load(ctx context.Context, aggregateID strin
 }
 
 func (r *AggregateRepositoryImpl[T]) Save(ctx context.Context, aggregate AggregateRoot) error {
-	// TODO: use transactor
 	return r.transactor.WithTransaction(ctx, func(ctx context.Context) error {
 		return r.doSave(ctx, aggregate)
 	})
@@ -251,7 +270,7 @@ func (r *AggregateRepositoryImpl[T]) publishEvent(ctx context.Context, event Eve
 }
 
 type EventModel struct {
-	// ParentID       string
+	ParentID    string
 	AggregateID string `validate:"required"`
 	// SubAggregateID string
 	// ReferenceID    string
