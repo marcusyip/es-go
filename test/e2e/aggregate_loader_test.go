@@ -16,7 +16,11 @@ type MockAggregateLoader struct {
 	mock.Mock
 }
 
-func (m *MockAggregateLoader) Load(ctx context.Context, aggregateID string) (*Transaction, error) {
+func (m *MockAggregateLoader) Load(
+	ctx context.Context,
+	aggregateID string,
+	opt *es.LoadOption,
+) (*Transaction, error) {
 	args := m.Called(ctx, aggregateID)
 	return args.Get(0).(*Transaction), args.Error(1)
 }

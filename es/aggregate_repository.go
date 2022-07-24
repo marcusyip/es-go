@@ -28,7 +28,7 @@ func GetContextAggregate(ctx context.Context) AggregateRoot {
 type AggregateRepository[T AggregateRoot] interface {
 	WithLoader(aggregateLoader AggregateLoader[T])
 	ListEvents(ctx context.Context, aggregateID string, gteVersion int) ([]*EventModel, error)
-	Load(ctx context.Context, aggregateID string) (T, error)
+	Load(ctx context.Context, aggregateID string, opts ...func(LoadOption) LoadOption) (T, error)
 	Save(ctx context.Context, aggregate AggregateRoot) error
 	AddProjector(eventName EventName, projector Projector)
 	Subscribe(eventName EventName, eventHandler EventHandler)
