@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -58,20 +59,10 @@ type AggregateRepositoryImpl[T AggregateRoot] struct {
 func NewAggregateRepository[T AggregateRoot](config *Config, newAggregateFn func() T,
 	db *pgxpool.Pool, transactor *Transactor, eventRegistry *EventRegistry,
 ) AggregateRepository[T] {
-	loadSQL := fmt.Sprintf(
-		`-- name: ListEvents :list
-SELECT aggregate_id, version, event_type, payload, created_at
-FROM %s 
-WHERE aggregate_id = $1 and version > $2
-ORDER BY version ASC
-`,
-		config.TableName)
-
 	return &AggregateRepositoryImpl[T]{
 		config:          config,
 		aggregateLoader: nil,
 		newAggregateFn:  newAggregateFn,
-		loadSQL:         loadSQL,
 		db:              db,
 		transactor:      transactor,
 		eventRegistry:   eventRegistry,
@@ -98,14 +89,14 @@ func (r *AggregateRepositoryImpl[T]) GetTx(ctx context.Context) DBTX {
 	return tx
 }
 
-func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
-	aggregateID string, gteVersion int,
+func (r *AggregateRepositoryImpl[T]) doListEvents(ctx context.Context,
+	query func(tx DBTX) (pgx.Rows, error),
 ) ([]*EventModel, error) {
 	tx := r.GetTx(ctx)
-	rows, err := tx.Query(context.TODO(), r.loadSQL, aggregateID, gteVersion)
+	rows, err := query(tx)
 	if err != nil {
 		r.debug("query error, err=%+v\n", err)
-		return nil, fmt.Errorf("ListEvents tx.Query error: %w", err)
+		return nil, fmt.Errorf("doListEvents tx.Query error: %w", err)
 	}
 	defer rows.Close()
 	// don't know the size of rows
@@ -114,12 +105,44 @@ func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
 		var m EventModel
 		if err := rows.Scan(&m.AggregateID, &m.Version, &m.EventType,
 			&m.Payload, &m.CreatedAt); err != nil {
-			r.debug("ListEvents - scan err err=%+v\n", err)
-			return nil, fmt.Errorf("ListEvents rows.Scan error: %w", err)
+			r.debug("doListEvents - scan err err=%+v\n", err)
+			return nil, fmt.Errorf("doListEvents rows.Scan error: %w", err)
 		}
 		eventModels = append(eventModels, &m)
 	}
 	return eventModels, nil
+}
+
+func (r *AggregateRepositoryImpl[T]) ListEvents(ctx context.Context,
+	aggregateID string, gteVersion int,
+) ([]*EventModel, error) {
+	return r.doListEvents(ctx, func(tx DBTX) (pgx.Rows, error) {
+		loadSQL := fmt.Sprintf(
+			`-- name: ListEvents :list
+		SELECT aggregate_id, version, event_type, payload, created_at
+		FROM %s 
+		WHERE aggregate_id = $1 and version > $2
+		ORDER BY version ASC
+		`,
+			r.config.TableName)
+		return tx.Query(context.TODO(), loadSQL, aggregateID, 0)
+	})
+}
+
+func (r *AggregateRepositoryImpl[T]) ListEventsWithParentID(ctx context.Context,
+	parentID, aggregateID string, gteVersion int,
+) ([]*EventModel, error) {
+	return r.doListEvents(ctx, func(tx DBTX) (pgx.Rows, error) {
+		loadSQL := fmt.Sprintf(
+			`-- name: ListEventsWithParentID :list
+		SELECT aggregate_id, version, event_type, payload, created_at
+		FROM %s 
+		WHERE parent_id = $1 and aggregate_id = $1 and version > $2
+		ORDER BY version ASC
+		`,
+			r.config.TableName)
+		return tx.Query(context.TODO(), loadSQL, parentID, aggregateID, 0)
+	})
 }
 
 type LoadOption struct {
@@ -151,7 +174,13 @@ func (r *AggregateRepositoryImpl[T]) Load(
 	aggregate := r.newAggregateFn()
 	aggregate.SetAggregateID(aggregateID)
 
-	mList, err := r.ListEvents(ctx, aggregateID, 0)
+	var mList []*EventModel
+	var err error
+	if loadOption.ParentID != "" {
+		mList, err = r.ListEventsWithParentID(ctx, loadOption.ParentID, aggregateID, 0)
+	} else {
+		mList, err = r.ListEvents(ctx, aggregateID, 0)
+	}
 	if err != nil {
 		var result T
 		return result, fmt.Errorf("Load error: %w", err)

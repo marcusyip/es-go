@@ -5,6 +5,7 @@ import "github.com/es-go/es-go/es"
 type CreateCommand struct {
 	es.BaseCommand
 
+	UserID        string  `validate:"required"`
 	TransactionID string  `validate:"required"`
 	Currency      string  `validate:"required"`
 	Amount        float64 `validate:"required,gte=0"`

@@ -18,12 +18,14 @@ func NewCreateCommandHandler(repository es.AggregateRepository[*Transaction]) *C
 
 func (h *CreateCommandHandler) Handle(ctx context.Context, command es.Command) error {
 	createCommand := command.(*CreateCommand)
-	transaction, err := h.repository.Load(context.TODO(), createCommand.GetAggregateID())
+	userID := createCommand.UserID
+
+	transaction, err := h.repository.Load(context.TODO(),
+		createCommand.GetAggregateID(), es.WithParentID(userID))
 	if err != nil {
 		return err
 	}
 	transaction.Create(createCommand.Currency, createCommand.Amount)
-
 	err = h.repository.Save(ctx, transaction)
 	if err != nil {
 		return err
